@@ -1,0 +1,1265 @@
+/**
+ * Created by namdt9 on 3/27/15.
+ */
+//EXTERNAL LIBRARY
+/*\
+ |*|  A complete cookies reader/writer framework with full unicode support.
+ |*|
+ |*|  Revision #1 - September 4, 2014
+ |*|
+ |*|  https://developer.mozilla.org/en-US/docs/Web/API/document.cookie
+ |*|  https://developer.mozilla.org/User:fusionchess
+ |*|
+ |*|  This framework is released under the GNU Public License, version 3 or later.
+ |*|  http://www.gnu.org/licenses/gpl-3.0-standalone.html
+ |*|
+ |*|  Syntaxes:
+ |*|
+ |*|  * docCookies.setItem(name, value[, end[, path[, domain[, secure]]]])
+ |*|  * docCookies.getItem(name)
+ |*|  * docCookies.removeItem(name[, path[, domain]])
+ |*|  * docCookies.hasItem(name)
+ |*|  * docCookies.keys()
+ |*|
+ \*/
+
+var _saqCookies = {
+
+    getItem: function (sKey) {
+        if (!sKey) { return null; }
+        return decodeURIComponent(document.cookie.replace(new RegExp("(?:(?:^|.*;)\\s*" + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=\\s*([^;]*).*$)|^.*$"), "$1")) || null;
+    },
+    setItem: function (sKey, sValue, vEnd, sPath, sDomain, bSecure) {
+        if (!sKey || /^(?:expires|max\-age|path|domain|secure)$/i.test(sKey)) { return false; }
+        var sExpires = "";
+        if (vEnd) {
+            switch (vEnd.constructor) {
+                case Number:
+                    sExpires = vEnd === Infinity ? "; expires=Fri, 31 Dec 9999 23:59:59 GMT" : "; max-age=" + vEnd;
+                    break;
+                case String:
+                    sExpires = "; expires=" + vEnd;
+                    break;
+                case Date:
+                    sExpires = "; expires=" + vEnd.toUTCString();
+                    break;
+            }
+        }
+        document.cookie = encodeURIComponent(sKey) + "=" + encodeURIComponent(sValue) + sExpires + (sDomain ? "; domain=" + sDomain : "") + (sPath ? "; path=" + sPath : "") + (bSecure ? "; secure" : "");
+        return true;
+    },
+    removeItem: function (sKey, sPath, sDomain) {
+        if (!this.hasItem(sKey)) { return false; }
+        document.cookie = encodeURIComponent(sKey) + "=; expires=Thu, 01 Jan 1970 00:00:00 GMT" + (sDomain ? "; domain=" + sDomain : "") + (sPath ? "; path=" + sPath : "");
+        return true;
+    },
+    hasItem: function (sKey) {
+        if (!sKey) { return false; }
+        return (new RegExp("(?:^|;\\s*)" + encodeURIComponent(sKey).replace(/[\-\.\+\*]/g, "\\$&") + "\\s*\\=")).test(document.cookie);
+    },
+    keys: function () {
+        var aKeys = document.cookie.replace(/((?:^|\s*;)[^\=]+)(?=;|$)|^\s*|\s*(?:\=[^;]*)?(?:\1|$)/g, "").split(/\s*(?:\=[^;]*)?;\s*/);
+        for (var nLen = aKeys.length, nIdx = 0; nIdx < nLen; nIdx++) { aKeys[nIdx] = decodeURIComponent(aKeys[nIdx]); }
+        return aKeys;
+    }
+};
+
+
+//BEGIN TRACKING CODE
+
+//if user already push message to _saq before file finish loading
+//save message to a temp variable so we can use _saq to call api later
+if(typeof _saq !== 'undefined'){
+    if(Object.prototype.toString.call( _saq )==='[object Array]'){
+        //If there any other _saq12345_tmp declare global,do nothing right after loading site
+        if (typeof _saq12345_tmp === 'undefined'){
+            _saq12345_tmp = _saq;
+        }else{
+            //console.log('the variable _saq12345_tmp has been declared somewhere outside');
+        }
+    }
+}
+
+_saq = (function () {
+    var q = [];
+    var domain = window.location.hostname;
+    var appId = '';
+    var uAgent = navigator.userAgent;
+    var ignoreValue = "_sa_ignore"; // neu field data nao co value = "_sa_ignore", co nghia la tren buyer tuy co pass tham so vao, nhung value cua no khong dung duoc
+
+    var detectReferrer = function(){
+        //decode URI to get unicode query string
+        //encodeURI assumes that the input is a complete URI that might have some characters which need encoding in it.
+        //encodeURIComponent will encode everything with special meaning, so you use it for components of URIs such as
+        // Minh tham khao decode o link nay http://meyerweb.com/eric/tools/dencoder/
+        return encodeURIComponent(decodeURIComponent(document.referrer));
+    };
+
+    var detectCurrentAddress = function(){
+        //decode URI to get unicode query string
+        return encodeURIComponent(decodeURIComponent(window.location.href));
+    }
+
+    var getClientTime = function(){
+        var currentDate = new Date();
+        return currentDate.getTime();
+
+    };
+
+    var isGoogleBog = function(){
+        var userAgent = navigator.userAgent.replace(/\;/g, ',');
+        if(userAgent.toLowerCase().indexOf("googlebog") != -1){
+            return true;
+        }else{
+            return false;
+        }
+    };
+
+    var detectDevice = function(){
+        var userAgent = navigator.userAgent.toLowerCase();
+        if(userAgent.match(/android/i)){
+            return 'android';
+        }else if(userAgent.match(/webos/i)){
+            return 'webos';
+        }else if(userAgent.match(/iphone/i)){
+            return 'iphone';
+        }else if(userAgent.match(/ipad/i)){
+            return 'ipad';
+        }else if(userAgent.match(/ipod/i)){
+            return 'ipod';
+        }else if(userAgent.match(/blackberry/i)|| userAgent.match(/playbook/i) || userAgent.match(/bb10/i)){
+            return 'blackberry';
+        }else if(userAgent.match(/windows phone/i) || userAgent.match(/iemobile/i)){
+            return 'windows phone';
+        }else if(userAgent.match(/silk/i)){
+            return 'fire';
+        }else{
+            return 'others';
+        }
+    };
+
+    var detectSendoPlatform = function(){
+        if( /android|webos|iphone|ipad|ipod|blackberry|playbook|bb10|windows phone|iemobile|opera mini|silk/i.test(navigator.userAgent.toLowerCase()) ) {
+            return "wapp";
+        }else{
+            return "desktop";
+        }
+    }
+
+    //private functions
+    var run = function() {
+        if(q.length)q.shift().call();
+    };
+
+    var isRegister = function(){
+        if('' === domain || '' === appId) return false;
+        return true;
+    };
+
+
+
+
+    //check if a json element is json array
+    var isArray  = function(what){
+        return Object.prototype.toString.call(what) === '[object Array]';
+    }
+
+
+
+    var safeSetValueToJsonKey = function (value){
+        try{
+            /* can phai encode uri component vi co mot so truong hop ten product hay ten shop chua ky tu dac biet cua URI.
+               Khi parse data log ra se bi loi, khong ban log duoc
+            */
+            return encodeURIComponent(setValueAndConvertToString(value));
+        }catch(e){
+            return "saveSetValue Error";
+        }
+
+    }
+
+    var setValueAndConvertToString = function (value){
+        try{
+            if(value == null || typeof value ==='undefined'){
+                return "";
+            }else{
+                return value.toString().trim();
+            }
+        }catch(e){
+            return "error when set value and convert to string";
+        }
+
+    }
+
+    var setDefaultData = function(field){
+        if(isArray(field))
+        {
+            return [];
+        }
+        else
+        {
+            return "";
+        }
+
+    }
+
+    var setUrlValue = function (value){
+        return encodeURIComponent(decodeURIComponent(value));
+    }
+
+    var setCurrentUrlValue = function (href_value){
+        var current_url = setValueAndConvertToString(href_value);
+        /*
+         Hien tai tren desktop, minh khong can team buyer truyen href vao.
+         Nhung do tren wappminh can buyer truyen href vao, nen team buyer da khai bao mot bien href cho wapp.
+         Tuy nhien vi tag_manager dung chung cho ca desktop va wapp nen qua desktop mac du minh khong can,
+         nhung no van truyen href vao api cua minh, lam de value href cua minh tinh rieng trong web_tracking.js
+         Cach xu ly la ben desktop se truyen vao mot dau hieu dac biet (_sa_ignore) , neu thay dau hieu nay
+         code se khong lay data do ben ngoai truyen vao ma tu dong lay bang ham javascript
+         */
+        if(current_url.toLowerCase() == ignoreValue)
+        {
+            return detectCurrentAddress();
+        }
+        return encodeURIComponent(decodeURIComponent(current_url));
+    }
+
+    //tao ra data de ban log.
+    // Luu y: function chi xu ly nest json 2 level
+    //format_log: format ma minh quy dinh cho log
+    // input_data: data do ben ngoai truyen vao
+    var generateLogData = function(format_log,input_string){
+        var log_data = {};
+        var input_data = JSON.parse(input_string);
+
+        for (var key in format_log)
+        {
+            log_data[key]= setDefaultData(format_log[key]);
+            //neu input_data co field trung voi field trong format_log thi lay data cua input_data
+            //neu khong thi set data default cho field nay trong log_data
+            if(input_data.hasOwnProperty(key))
+            {
+                //neu field la mot json array, thi phai xu ly rieng
+                if(isArray(format_log[key]))
+                {
+                    var arr_element_format = format_log[key][0];
+                    for(var i = 0; i < input_data[key].length; i++)
+                    {
+                        /*tao mot element mau, va add cac field vao element mau nay voi default value la empty
+                          ly do la vi javascript dung tham chieu, neu minh set one_element = arr_element_format,
+                         qua lan vong lap sau, no van giu lai data cu
+                        */
+                        var one_element = "";
+                        one_element = {};
+                        for(var key2 in arr_element_format)
+                        {
+                            one_element[key2]="";
+                        }
+                        for(var key3 in one_element)
+                        {
+                            if(input_data[key][i].hasOwnProperty(key3))
+                            {
+                                one_element[key3] = safeSetValueToJsonKey(input_data[key][i][key3]);
+                            }
+                        }
+                        log_data[key].push(one_element);
+                    }
+                }
+                // neu field khong phai json array thi xu ly binh thuong
+                else
+                {
+                    // xu ly mot so truong hop dac biet
+                    if(key == "href")
+                    {
+                        log_data[key] = setCurrentUrlValue(input_data[key]);
+                    }
+                    else
+                    {
+                        // neu khong nam truong truong hop dac biet thi set value nhu binh thuong
+                        log_data[key] = safeSetValueToJsonKey(input_data[key]);
+                    }
+                }
+            }
+            else
+            {
+                //set data cho nhung field ma log nao cung co
+                if(key == "domain")
+                {
+                    log_data[key] = setValueAndConvertToString(domain) ;
+                }
+                else if( key == "user_id")
+                {
+                    log_data[key] = setValueAndConvertToString(_saqCookies.getItem("tracking_id"));
+                }
+                else if(key == "client_time")
+                {
+                    //khong can dung safeSetValueToJsonKey vi minh biet chac value la kieu so
+                    log_data[key] = setValueAndConvertToString(getClientTime()) ;
+                }
+                else if(key == "referrer")
+                {
+                    log_data[key] =  detectReferrer();
+                }
+                else if(key == "device")
+                {
+                    log_data[key] = safeSetValueToJsonKey(detectDevice()) ;
+                }
+                else if(key == "href")
+                {
+                    log_data[key] =  detectCurrentAddress();
+                }
+                else if(key == "u_agent")
+                {
+                    log_data[key] = encodeURIComponent(uAgent);
+                }
+                else if(key == "ip_client")
+                {
+                    log_data[key] = (typeof ip_client != "undefined" ? ip_client : "");
+                }
+            }
+        }
+        return log_data;
+    }
+
+    var gatherTrackProductClick = function(jsonString){
+        try{
+            var format_log = {
+                user_id:"",
+                client_time:"",
+                referrer:"",
+                device:"",
+                login_id:"",
+                login_email:"",
+                login_type:"",
+                href:"",
+                domain:"",
+                sendo_platform:"",
+                type:"",
+                products:[{
+                    product_id:"",
+                    product_name:"",
+                    sku_user:"",
+                    belong_cate_lvl1_id:"",
+                    belong_cate_lvl2_id:"",
+                    belong_cate_lvl3_id:"",
+                    belong_cate_lvl1_name:"",
+                    belong_cate_lvl2_name:"",
+                    belong_cate_lvl3_name:"",
+                    belong_shop_id:"",
+                    belong_shop_name:"",
+                    brand_id:"",
+                    brand_name:"",
+                    result_position:"",
+                    product_type:"",
+                    special_res:"",
+                    request_id:""
+                }],
+                u_agent:"",
+                referrer_internal:"",
+                session_key:"",
+                belong_tab:"",
+                num_result_per_page:"",
+                listing_algo:"",
+                experiment_id:"",
+                ip_client:""
+            };
+
+            var log_data = generateLogData(format_log,jsonString);
+
+            return JSON.stringify(log_data);
+        }catch(e){
+            //console.log("error function gatherTrackSearchResultClick, message : " + e);
+            return false;
+        }
+    }
+
+    var gatherTrackSearchResultClick = function(jsonString){
+        try{
+            var format_log = {
+                user_id:"",
+                client_time:"",
+                referrer:"",
+                device:"",
+                login_id:"",
+                login_email:"",
+                login_type:"",
+                href:"",
+                domain:"",
+                sendo_platform:"",
+                type:"",
+                products:[{
+                    product_id:"",
+                    product_name:"",
+                    sku_user:"",
+                    belong_cate_lvl1_id:"",
+                    belong_cate_lvl2_id:"",
+                    belong_cate_lvl3_id:"",
+                    belong_cate_lvl1_name:"",
+                    belong_cate_lvl2_name:"",
+                    belong_cate_lvl3_name:"",
+                    belong_shop_id:"",
+                    belong_shop_name:"",
+                    is_sponsored:"",
+                    brand_id:"",
+                    brand_name:"",
+                    result_position:"",
+                    product_type:"",
+                    special_res: "",
+                    duplicate_res:"",
+                    request_id:""
+                }],
+                u_agent:"",
+                referrer_internal:"",
+                session_key:"",
+                belong_tab:"",
+                num_result_per_page:"",
+                ip_client:"",
+                experiment_id:"",
+                special_res:"",
+                duplicate_res:"",
+                search_algo:""
+            };
+
+            var log_data = generateLogData(format_log,jsonString);
+            return JSON.stringify(log_data);
+        }catch(e){
+            //console.log("error function gatherTrackSearchResultClick, message : " + e);
+            return false;
+        }
+    }
+
+    var gatherTrackSearchProductImpression = function(jsonString){
+        try{
+            var format_log = {
+                login_id:"",
+                login_email:"",
+                login_type:"",
+                sendo_platform:"",
+                referrer_internal:"",
+                products:[{
+                    product_id:"",
+                    product_ext_id:"",
+                    product_name:"",
+                    belong_shop_id:"",
+                    belong_shop_name:"",
+                    belong_cate_lvl1_id:"",
+                    belong_cate_lvl2_id:"",
+                    belong_cate_lvl3_id:"",
+                    belong_cate_lvl1_name:"",
+                    belong_cate_lvl2_name:"",
+                    belong_cate_lvl3_name:"",
+                    is_sponsored:"",
+                    result_position:"",
+                    sku_user:"",
+                    product_type: "",
+                    special_res: "",
+                    duplicate_res:"",
+                    request_id:""
+                }],
+                page_id:"",
+                session_key:"",
+                domain:"",
+                user_id:"",
+                client_time:"",
+                referrer:"",
+                device:"",
+                href:"",
+                u_agent:"",
+                belong_tab:"",
+                num_result_per_page:"",
+                experiment_id:"",
+                special_res:"",
+                duplicate_res:"",
+                search_algo:""
+            };
+
+            var log_data = generateLogData(format_log,jsonString);
+            return JSON.stringify(log_data);
+        }catch(e){
+            return false;
+        }
+    }
+
+    var gatherTrackProductImpression = function(jsonString){
+        try{
+            var format_log = {
+                login_id:"",
+                login_email:"",
+                login_type:"",
+                sendo_platform:"",
+                referrer_internal:"",
+                products:[{
+                    product_id:"",
+                    product_ext_id:"",
+                    product_name:"",
+                    belong_shop_id:"",
+                    belong_shop_name:"",
+                    belong_cate_lvl1_id:"",
+                    belong_cate_lvl2_id:"",
+                    belong_cate_lvl3_id:"",
+                    belong_cate_lvl1_name:"",
+                    belong_cate_lvl2_name:"",
+                    belong_cate_lvl3_name:"",
+                    result_position:"",
+                    sku_user:"",
+                    product_type:"",
+                    special_res:"",
+                    request_id:""
+                }],
+                page_id:"",
+                session_key:"",
+                domain:"",
+                user_id:"",
+                client_time:"",
+                referrer:"",
+                device:"",
+                href:"",
+                u_agent:"",
+                belong_tab:"",
+                num_result_per_page:"",
+                listing_algo:"",
+                experiment_id:"",
+                special_res:""
+            };
+
+            var log_data = generateLogData(format_log,jsonString);
+            return JSON.stringify(log_data);
+        }catch(e){
+            //console.log("error function gatherTrackSearch, message : " + e);
+            return false;
+        }
+    }
+
+
+    var gatherTrackCart = function(jsonString){
+        try{
+            var track = {
+                type:null,
+                login_id:null,
+                login_email:null,
+                login_type:null,
+                product_id:null,
+                quantity:null,
+                promotion:null,
+                five_star:null,
+                four_star:null,
+                three_star:null,
+                two_star:null,
+                one_star:null,
+                belong_shop_id:null,
+                belong_shop_name:null,
+                belong_shop_rank:null,
+                belong_cate_lvl1_id:null,
+                belong_cate_lvl2_id:null,
+                belong_cate_lvl3_id:null,
+                href:null,
+                domain:null,
+                belong_cate_lvl1_name:null,
+                belong_cate_lvl2_name:null,
+                belong_cate_lvl3_name:null,
+                sendo_platform:null,
+                brand_id:null,
+                brand_name:null,
+                shipping_fee:null,
+                product_attribute:null,
+                referrer_internal:null
+            };
+            track.domain = domain;
+            track.user_id = _saqCookies.getItem("tracking_id");
+            track.client_time = getClientTime();
+            track.referrer = detectReferrer();
+            track.device = detectDevice() ;
+            track.href = detectCurrentAddress();
+            track.u_agent = encodeURIComponent(uAgent);
+            var param = JSON.parse(jsonString);
+            for(var key in param){
+                if(track.hasOwnProperty(key)){
+                    track[key] = param[key];
+                }
+            }
+            track.belong_shop_name = encodeURIComponent(track.belong_shop_name);
+            track.belong_cate_lvl1_name = encodeURIComponent(track.belong_cate_lvl1_name);
+            track.belong_cate_lvl2_name = encodeURIComponent(track.belong_cate_lvl2_name);
+            track.belong_cate_lvl3_name = encodeURIComponent(track.belong_cate_lvl3_name);
+
+            return JSON.stringify(track);
+        }catch(e){
+            //console.log("error function gatherTrackBlockImpression, message : " + e);
+            return false;
+        }
+    };
+
+    var gatherTrackBlockImpression = function(jsonString){
+        try{
+            var track = {
+                login_id:null,
+                login_email:null,
+                login_type:null,
+                sendo_platform:null,
+                page_id:null,
+                block_id:null,
+                block_name:null,
+                num_item_recommend_for_user:null,
+                session_key:null,
+                referrer_internal:null
+            };
+            track.domain = domain;
+            track.user_id = _saqCookies.getItem("tracking_id");
+            track.client_time = getClientTime();
+            track.referrer = detectReferrer();
+            track.device = detectDevice() ;
+            track.href = detectCurrentAddress();
+            track.algorithm = _saqCookies.getItem("rec_algo");
+            track.num_item_recommend_for_user = _saqCookies.getItem("num_item_recommend_for_user");
+            track.u_agent = encodeURIComponent(uAgent);
+            var param = JSON.parse(jsonString);
+            for(var key in param){
+                if(track.hasOwnProperty(key)){
+                    track[key] = param[key];
+                }
+            }
+            track.block_name = encodeURIComponent(track.block_name);
+
+            return JSON.stringify(track);
+        }catch(e){
+            //console.log("error function gatherTrackBlockImpression, message : " + e);
+            return false;
+        }
+    };
+
+    var gatherTrackBlockClick = function(jsonString){
+        try{
+            var track = {
+                login_id:null,
+                login_email:null,
+                login_type:null,
+                sendo_platform:null,
+                page_id:null,
+                block_id:null,
+                block_name:null,
+                square_position:null,
+                square_url:null,
+                session_key:null,
+                referrer_internal:null
+            };
+            track.domain = domain;
+            track.user_id = _saqCookies.getItem("tracking_id");
+            track.algorithm = _saqCookies.getItem("rec_algo");
+            track.client_time = getClientTime();
+            track.referrer = detectReferrer();
+            track.device = detectDevice() ;
+            track.href = detectCurrentAddress();
+            track.u_agent = encodeURIComponent(uAgent);
+            var param = JSON.parse(jsonString);
+            for(var key in param){
+                if(track.hasOwnProperty(key)){
+                    track[key] = param[key];
+                }
+            }
+            track.block_name = encodeURIComponent(track.block_name);
+            track.square_url = encodeURIComponent(decodeURIComponent(track.square_url));
+
+            return JSON.stringify(track);
+        }catch(e){
+            //console.log("error function gatherTrackSquareClick, message : " + e);
+            return false;
+        }
+    };
+
+    var gatherTrackBrand = function(jsonString){
+        try{
+            var track = {
+                login_id:null,
+                login_email:null,
+                login_type:null,
+                sendo_platform:null,
+                page_id:null,
+                brand_id:null,
+                brand_name:null,
+                referrer_internal:null
+            };
+            track.domain = domain;
+            track.user_id = _saqCookies.getItem("tracking_id");
+            track.client_time = getClientTime();
+            track.referrer = detectReferrer();
+            track.device = detectDevice() ;
+            track.u_agent = encodeURIComponent(uAgent);
+            var param = JSON.parse(jsonString);
+            for(var key in param){
+                if(track.hasOwnProperty(key)){
+                    track[key] = param[key];
+                }
+            }
+            track.brand_name = encodeURIComponent(track.brand_name);
+            return JSON.stringify(track);
+        }catch(e){
+            //console.log("error function gatherTrackBrand, message : " + e);
+            return false;
+        }
+    }
+
+
+    var gatherTrackSearch = function(jsonString){
+        try{
+            var track = {
+                login_id:null,
+                login_email:null,
+                login_type:null,
+                sendo_platform:null,
+                total_result:null,
+                referrer_internal:null,
+                session_key:null,
+                num_sponsored_results:null,
+                search_algo:null,
+                belong_tab:null,
+                num_result_per_page:null,
+                keyword:null,
+                experiment_id: null,
+                duplicate_res:null,
+                city_id:null,
+                city_name:null,
+                address:null
+            };
+            track.domain = domain;
+            track.user_id = _saqCookies.getItem("tracking_id");
+            track.client_time = getClientTime();
+            track.referrer = detectReferrer();
+            track.device = detectDevice();
+            track.href = detectCurrentAddress();
+            track.u_agent = encodeURIComponent(uAgent);
+            var param = JSON.parse(jsonString);
+            for(var key in param){
+                if(track.hasOwnProperty(key)){
+                    if(key=='href'){
+                        if(param[key]!= ignoreValue){
+                            track[key] = setUrlValue(param[key]);
+                        }
+                    }else{
+                        track[key] = param[key];
+                    }
+
+
+                }
+            }
+            return JSON.stringify(track);
+        }catch(e){
+            //console.log("error function gatherTrackSearch, message : " + e);
+            return false;
+        }
+    }
+
+    var gatherTrackProductAccess = function(jsonString){
+        try{
+            var track = {
+                login_id:null,
+                login_email:null,
+                login_type:null,
+                product_id:null,
+                product_name:null,
+                belong_cate_lvl1_id: null,
+                belong_cate_lvl2_id:null,
+                belong_cate_lvl3_id:null,
+                belong_cate_lvl1_name: null,
+                belong_cate_lvl2_name:null,
+                belong_cate_lvl3_name:null,
+                belong_shop_id:null,
+                page_id:null,
+                sendo_platform:null,
+                belong_shop_ext_id:null,
+                product_ext_id:null,
+                view_type:null,
+                brand_id:null,
+                brand_name:null,
+                belong_shop_name:null,
+                referrer_internal:null,
+                price: null,
+                final_price: null
+            };
+            track.domain = domain;
+            track.user_id = _saqCookies.getItem("tracking_id");
+            track.client_time = getClientTime();
+            track.referrer = detectReferrer();
+            track.device = detectDevice() ;
+            track.href = detectCurrentAddress();
+            track.u_agent = encodeURIComponent(uAgent);
+            var param = JSON.parse(jsonString);
+            for(var key in param){
+                if(track.hasOwnProperty(key)){
+                    track[key] = param[key];
+                }
+            }
+            track.belong_cate_lvl1_name = encodeURIComponent(track.belong_cate_lvl1_name);
+            track.belong_cate_lvl2_name = encodeURIComponent(track.belong_cate_lvl2_name);
+            track.belong_cate_lvl3_name = encodeURIComponent(track.belong_cate_lvl3_name);
+            track.product_name = encodeURIComponent(track.product_name);
+            track.belong_shop_name = encodeURIComponent(track.belong_shop_name);
+            track.brand_name = encodeURIComponent(track.brand_name);
+            return JSON.stringify(track);
+        }catch(e){
+            //console.log("error function gatherTrackProductAccess, message : " + e);
+            return false;
+        }
+    }
+
+    var gatherTrackCategoryAccess = function(jsonString){
+        try{
+            var track = {
+                login_id:null,
+                login_email:null,
+                login_type:null,
+                access_cate_id:null,
+                access_cate_lvl:null,
+                belong_cate_lvl1_id: null,
+                belong_cate_lvl2_id:null,
+                belong_cate_lvl3_id:null,
+                belong_cate_lvl1_name:null,
+                belong_cate_lvl2_name:null,
+                belong_cate_lvl3_name:null,
+                sendo_platform:null,
+                referrer_internal:null,
+                listing_algo:null,
+                session_key:null,
+                belong_tab:null,
+                experiment_id:null,
+                city_id:null,
+                city_name:null,
+                address:null
+            };
+            track.domain = domain;
+            track.user_id = _saqCookies.getItem("tracking_id");
+            track.client_time = getClientTime();
+            track.referrer = detectReferrer();
+            track.device = detectDevice() ;
+            track.href = detectCurrentAddress();
+            track.u_agent = encodeURIComponent(uAgent);
+            var param = JSON.parse(jsonString);
+            for(var key in param){
+                if(track.hasOwnProperty(key)){
+                    track[key] = param[key];
+                }
+            }
+
+            track.belong_cate_lvl1_name = encodeURIComponent(track.belong_cate_lvl1_name);
+            track.belong_cate_lvl2_name = encodeURIComponent(track.belong_cate_lvl2_name);
+            track.belong_cate_lvl3_name = encodeURIComponent(track.belong_cate_lvl3_name);
+
+            return JSON.stringify(track);
+        }catch(e){
+            //console.log("error function gatherTrackCategoryAccess, message : " + e);
+            return false;
+        }
+    }
+
+    var gatherTrackLinkImpress = function(jsonString){
+        try{
+            var track = {
+                login_id:null,
+                login_email:null,
+                login_type:null,
+                from_page_id:null,
+                from_cate_id:null,
+                from_product_id:null,
+                from_block_id:null,
+                from_shop_id:null,
+                recommend:null,
+                to_page_id:null,
+                to_cate_id:null,
+                to_product_id:null,
+                to_block_id:null,
+                to_shop_id:null,
+                to_href:null,
+                sendo_platform:null,
+                referrer_internal:null
+            };
+            track.domain = domain;
+            track.user_id = _saqCookies.getItem("tracking_id");
+            track.client_time = getClientTime();
+            track.referrer = detectReferrer();
+            track.device = detectDevice() ;
+            track.from_href = encodeURIComponent(window.location.href);
+            track.u_agent = encodeURIComponent(uAgent);
+            var param = JSON.parse(jsonString);
+            for(var key in param){
+                if(track.hasOwnProperty(key)){
+                    track[key] = param[key];
+                }
+            }
+            return JSON.stringify(track);
+        }catch(e){
+            //console.log("error function gatherTrackLinkImpress, message : " + e);
+            return false;
+        }
+    }
+
+    var gatherTrackLinkClick = function(jsonString){
+
+        try{
+            var track = {
+                login_id:null,
+                login_email:null,
+                login_type:null,
+                from_page_id:null,
+                from_cate_id:null,
+                from_product_id:null,
+                from_block_id:null,
+                from_shop_id:null,
+                recommend:null,
+                to_page_id:null,
+                to_cate_id:null,
+                to_product_id:null,
+                to_block_id:null,
+                to_shop_id:null,
+                to_href:null,
+                sendo_platform:null,
+                referrer_internal:null
+            };
+            track.domain = domain;
+            track.user_id = _saqCookies.getItem("tracking_id");
+            track.client_time = getClientTime();
+            track.referrer = detectReferrer();
+            track.device = detectDevice();
+            track.from_href = encodeURIComponent(window.location.href);
+            track.u_agent = encodeURIComponent(uAgent);
+            var param = JSON.parse(jsonString);
+            for(var key in param){
+                if(track.hasOwnProperty(key)){
+                    track[key] = param[key];
+                }
+            }
+            return JSON.stringify(track);
+        }catch(e){
+            //console.log("error function gatherTrackLinkClick, message : " + e);
+            return false;
+        }
+
+    }
+
+    var gatherTrackBlockImpression2 = function(jsonString){
+        try{
+            var format_log = {
+                login_id:null,
+                login_type:null,
+                user_id:null,
+                sendo_platform:null,
+                blocks: [{
+                    result_id:null,
+                    source_page_id:null,
+                    source_block_id:null,
+                    algo:null,
+                    result_position:null,
+                    result_type:null,
+                    session_key_server:null,
+                    num_result_per_page:null,
+                    total_result:null,
+                    special_res:null,
+                    result_url:null,
+                }],
+                session_key:null,
+                domain:null,
+                client_time:null,
+                referrer:null,
+                href:null,
+                u_agent:null,
+                experiment_id:null
+            };
+
+            var log_data = generateLogData(format_log,jsonString);
+            return JSON.stringify(log_data);
+        }catch(e){
+            //console.log("error function gatherTrackSearch, message : " + e);
+            return false;
+        }
+    };
+
+    var gatherTrackBlockClick2 = function(jsonString){
+        try{
+            var format_log = {
+                login_id:null,
+                login_type:null,
+                user_id:null,
+                sendo_platform:null,
+                blocks: [{
+                    result_id:null,
+                    source_page_id:null,
+                    source_block_id:null,
+                    algo:null,
+                    result_position:null,
+                    result_type:null,
+                    session_key_server:null,
+                    num_result_per_page:null,
+                    total_result:null,
+                    special_res:null,
+                    result_url:null,
+                }],
+                session_key:null,
+                domain:null,
+                client_time:null,
+                referrer:null,
+                href:null,
+                u_agent:null,
+                experiment_id:null
+            };
+
+            var log_data = generateLogData(format_log,jsonString);
+            return JSON.stringify(log_data);
+        }catch(e){
+            //console.log("error function gatherTrackSearch, message : " + e);
+            return false;
+        }
+    };
+
+    var gatherTrackBlockView = function(jsonString){
+        try{
+            var track = {
+                login_id:null,
+                login_email:null,
+                login_type:null,
+                sendo_platform:null,
+                source_page_id:null,
+                source_block_id:null,
+                algo:null,
+                num_result_per_page:null,
+                total_result:null,
+                special_res:null,
+                session_key:null,
+                experiment_id:null
+            };
+            track.domain = domain;
+            track.user_id = _saqCookies.getItem("tracking_id");
+            track.client_time = getClientTime();
+            track.referrer = detectReferrer();
+            track.device = detectDevice();
+            track.href = detectCurrentAddress();
+            track.u_agent = encodeURIComponent(uAgent);
+            var param = JSON.parse(jsonString);
+            for(var key in param){
+                if(track.hasOwnProperty(key)){
+                    if(key=='href'){
+                        if(param[key]!= ignoreValue){
+                            track[key] = setUrlValue(param[key]);
+                        }
+                    }else{
+                        track[key] = param[key];
+                    }
+
+
+                }
+            }
+            return JSON.stringify(track);
+        }catch(e){
+            //console.log("error function gatherTrackSearch, message : " + e);
+            return false;
+        }
+    }
+
+
+    var sendXmlHttpRequest = function(taskName, params){
+        try{
+            if(isGoogleBog()) return false;
+            var strPush= 'json=' + params.toString();
+            var http = new XMLHttpRequest();
+            // Pilot: track-pilot.sendo.vn
+            // PRO: track.sendo.vn
+            var domain = location.protocol
+                + '//track'
+                + location.hostname
+                    .replace('pilot','-pilot')
+                    .replace('www','')
+                + '/';
+
+            http.open("POST", domain + taskName, true);
+            //Send the proper header information along with the request
+            http.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+            /*http.onreadystatechange = function() {//Call a function when the state changes.
+                if(http.readyState == 4 && http.status == 200) {
+                    console.log(http.responseText);
+                }
+            }*/
+            http.send(strPush);
+        }catch(e){
+            //console.log("sendXmlHttpRequest failed: "+ e.message);
+        }
+    };
+
+
+
+
+
+    //sendo tracker api
+    var trackers = {
+
+        trackClick : function(jsonString){
+            var track = gatherTrackClickData(jsonString);
+            if(track){
+                sendXmlHttpRequest("clickTracking",track);
+            }
+            run();
+        },
+
+        trackLinkClick : function(jsonString){
+            var track = gatherTrackLinkClick(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackLinkClick",track);
+            }
+            run();
+        },
+
+        trackLinkImpress: function(jsonString){
+            var track = gatherTrackLinkImpress(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackLinkImpress",track);
+            }
+            run();
+        },
+
+        trackProductAccess: function(jsonString){
+            var track = gatherTrackProductAccess(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackProductAccess",track);
+            }
+            run();
+        },
+
+        trackCategoryAccess: function(jsonString){
+            var track = gatherTrackCategoryAccess(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackCategoryAccess",track);
+            }
+            run();
+        },
+
+        trackSearch: function(jsonString){
+            var track = gatherTrackSearch(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackSearch",track);
+            }
+            run();
+        },
+
+        trackSearchResultClick: function(jsonString){
+            var track = gatherTrackSearchResultClick(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackSearchResultClick",track);
+            }
+            run();
+        },
+
+        trackBrand: function(jsonString){
+            var track = gatherTrackBrand(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackBrand",track);
+            }
+            run();
+        },
+
+        trackBlockImpression: function(jsonString){
+            var track = gatherTrackBlockImpression(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackBlockImpression",track);
+            }
+            run();
+        },
+
+        trackBlockClick: function(jsonString){
+            var track = gatherTrackBlockClick(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackBlockClick",track);
+            }
+            run();
+        },
+
+        trackCart: function(jsonString){
+            var track = gatherTrackCart(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackCart",track);
+            }
+            run();
+        },
+
+        trackProductImpression: function(jsonString){
+            var track = gatherTrackProductImpression(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackProductImpression",track);
+            }
+            run();
+        },
+
+        trackSearchProductImpression: function(jsonString){
+            var track = gatherTrackSearchProductImpression(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackSearchProductImpression",track);
+            }
+            run();
+        },
+
+        trackProductClick: function(jsonString){
+            var track = gatherTrackProductClick(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackProductClick",track);
+            }
+            run();
+        },
+
+        register : function(d,a){
+            //chuc nang nay tam thoi khong dung
+            domain = d;appId = a;run();
+        },
+
+        trackBlockImpression2: function(jsonString){
+            var track = gatherTrackBlockImpression2(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackBlockImpression2",track);
+            }
+            run();
+        },
+
+        trackBlockClick2: function(jsonString){
+            var track = gatherTrackBlockClick2(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackBlockClick2",track);
+            }
+            run();
+        },
+
+        trackBlockView: function(jsonString){
+            var track = gatherTrackBlockView(jsonString);
+            if(track){
+                sendXmlHttpRequest("trackBlockView",track);
+            }
+            run();
+        }
+
+
+    };
+
+
+
+    return {
+        push : function (messages){
+            try{
+                var fn = messages.shift();
+                var params = messages;
+                q.push(function(){ trackers[fn].apply(null,params||[]); });
+                run();
+            }catch(e){
+                //console.log("pushing failed: " + e);
+            }
+        },
+        test : function(){
+            //var a = isMobile();
+            //console.log(a);
+        }
+
+    }
+})();
+
+
+
+if (typeof _saq12345_tmp !== 'undefined'){
+    for(var i = 0 ; i < _saq12345_tmp.length; i ++){
+        _saq.push(_saq12345_tmp[i]);
+    }
+}
+
+
+
